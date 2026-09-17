@@ -15,6 +15,13 @@ if (length(faltan)) {
   quit(status = 1)
 }
 
+# Los paquetes se instalaron desde Posit Package Manager (repositorio "RSPM").
+# shinyapps.io necesita una dirección de código fuente para ese nombre, no la de binarios de Linux.
+options(repos = c(
+  CRAN = "https://cloud.r-project.org",
+  RSPM = "https://packagemanager.posit.co/cran/latest"
+))
+
 rsconnect::setAccountInfo(name = cuenta, token = token, secret = secreto, server = "shinyapps.io")
 
 # Solo se publican los archivos que usa la app
