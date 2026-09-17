@@ -68,6 +68,9 @@ jobs:
             any::callr
             any::later
             any::rsconnect
+            any::cpp11
+            any::progress
+            any::Rcpp
 
       - name: Guardar la versión anterior de los datos
         run: |
