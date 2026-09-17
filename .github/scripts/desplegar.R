@@ -15,10 +15,18 @@ if (length(faltan)) {
   quit(status = 1)
 }
 
-# Los paquetes se instalaron desde Posit Package Manager (repositorio "RSPM"),
-# pero shinyapps.io solo sabe instalarlos si se registran como CRAN.
-# Sin un repositorio llamado "RSPM", rsconnect los busca en CRAN y los marca así.
+# Los paquetes se instalaron desde Posit Package Manager y quedaron marcados como "RSPM",
+# pero shinyapps.io solo sabe instalarlos si vienen de CRAN (son los mismos paquetes).
+Sys.unsetenv("RENV_CONFIG_REPOS_OVERRIDE")
 options(repos = c(CRAN = "https://cloud.r-project.org"))
+for (descripcion in file.path(list.dirs(.libPaths(), recursive = FALSE), "DESCRIPTION")) {
+  if (!file.exists(descripcion)) next
+  campos <- read.dcf(descripcion)
+  if ("Repository" %in% colnames(campos) && identical(unname(campos[1, "Repository"]), "RSPM")) {
+    campos[1, "Repository"] <- "CRAN"
+    try(write.dcf(campos, descripcion, keep.white = colnames(campos)), silent = TRUE)
+  }
+}
 
 rsconnect::setAccountInfo(name = cuenta, token = token, secret = secreto, server = "shinyapps.io")
 
@@ -37,6 +45,17 @@ if (length(faltantes)) {
 # Configuración del censo, creada por el workflow a partir de GitHub Secrets
 if (file.exists(".Renviron")) archivos <- c(archivos, ".Renviron")
 if (file.exists("credenciales/cuenta_servicio.json")) archivos <- c(archivos, "credenciales/cuenta_servicio.json")
+
+# Revisar antes de subir que ningún paquete siga marcado como "RSPM"
+rsconnect::writeManifest(appDir = ".", appFiles = archivos, quiet = TRUE)
+manifiesto <- jsonlite::read_json("manifest.json")
+unlink("manifest.json")
+fuentes <- vapply(manifiesto$packages, function(p) paste0(p$Source, ""), character(1))
+message("Origen de los paquetes: ", paste(names(table(fuentes)), table(fuentes), sep = "=", collapse = ", "))
+if (any(fuentes == "RSPM")) {
+  message("ERROR: siguen marcados como RSPM: ", paste(names(fuentes)[fuentes == "RSPM"], collapse = ", "))
+  quit(status = 1)
+}
 
 rsconnect::deployApp(
   appDir = ".",
