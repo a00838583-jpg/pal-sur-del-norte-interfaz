@@ -1,0 +1,17 @@
+# ---- Datos personales y credenciales: NUNCA se suben a GitHub ----
+.Renviron
+credenciales/
+*.xlsx
+*.xls
+respaldos_censo/
+
+# ---- Archivos de sesión de R, RStudio y del sistema ----
+.RData
+.Rhistory
+.Rproj.user/
+.DS_Store
+rsconnect/
+
+# ---- Archivos que ya no se usan ----
+no_necesarios/
+.claude/

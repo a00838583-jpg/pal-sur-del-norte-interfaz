@@ -1,0 +1,122 @@
+# =============================================================================
+# Actualiza los datos de INEGI y publica la interfaz en shinyapps.io
+#
+# Flujo:
+#   catalogo_indicadores.csv (lista fija de consultas)
+#     -> descargar_datos.R      (consulta la API de INEGI y escribe datos/inegi_datos.rds)
+#     -> validar_datos.R        (revisa que la descarga esté completa y que la app pueda leerla)
+#     -> commit de datos/       (guarda la versión nueva en el repositorio)
+#     -> desplegar.R            (publica app.R, funciones.R, censo.R, ... en shinyapps.io)
+#
+# Si la descarga falla o viene incompleta, el workflow se detiene y la app
+# publicada sigue funcionando con los datos anteriores.
+# =============================================================================
+
+name: Actualizar datos de INEGI y publicar
+
+on:
+  schedule:
+    # Cada lunes a las 12:00 UTC (6:00 a. m. hora del centro de México)
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: actualizar-interfaz
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Instalar paquetes de R
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::shiny
+            any::bslib
+            any::plotly
+            any::DT
+            any::dplyr
+            any::ggplot2
+            any::scales
+            any::httr
+            any::jsonlite
+            any::readxl
+            any::openxlsx
+            any::zip
+            any::digest
+            any::googlesheets4
+            any::gargle
+            any::cellranger
+            any::callr
+            any::later
+            any::rsconnect
+
+      - name: Guardar la versión anterior de los datos
+        run: |
+          if [ -f datos/inegi_datos.rds ]; then
+            cp datos/inegi_datos.rds "$RUNNER_TEMP/inegi_datos_anterior.rds"
+          fi
+
+      - name: Descargar datos de INEGI (descargar_datos.R)
+        run: Rscript descargar_datos.R
+
+      - name: Validar la descarga
+        run: Rscript .github/scripts/validar_datos.R "$RUNNER_TEMP/inegi_datos_anterior.rds"
+
+      - name: Guardar los datos actualizados en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datos/inegi_datos.rds datos/inegi_datos.csv
+          if git diff --cached --quiet; then
+            echo "Los datos no cambiaron."
+          else
+            git commit -m "Actualización automática de datos de INEGI ($(date -u +%Y-%m-%d))"
+            git push
+          fi
+
+      - name: Preparar la configuración del censo (desde GitHub Secrets)
+        env:
+          CENSO_HOJA: ${{ secrets.CENSO_HOJA }}
+          CENSO_CLAVE_SHA256: ${{ secrets.CENSO_CLAVE_SHA256 }}
+          GOOGLE_CREDENCIALES_JSON: ${{ secrets.GOOGLE_CREDENCIALES_JSON }}
+        run: |
+          : > .Renviron
+          echo "CENSO_CREDENCIALES=credenciales/cuenta_servicio.json" >> .Renviron
+          if [ -n "$CENSO_HOJA" ]; then
+            echo "CENSO_HOJA=$CENSO_HOJA" >> .Renviron
+          else
+            echo "::warning::No hay secreto CENSO_HOJA: las pestañas Censo y Programas no funcionarán en shinyapps.io hasta configurarlo."
+          fi
+          if [ -n "$CENSO_CLAVE_SHA256" ]; then
+            echo "CENSO_CLAVE_SHA256=$CENSO_CLAVE_SHA256" >> .Renviron
+          fi
+          if [ -n "$GOOGLE_CREDENCIALES_JSON" ]; then
+            mkdir -p credenciales
+            printf '%s' "$GOOGLE_CREDENCIALES_JSON" > credenciales/cuenta_servicio.json
+          fi
+
+      - name: Publicar en shinyapps.io
+        env:
+          SHINYAPPS_ACCOUNT: ${{ secrets.SHINYAPPS_ACCOUNT }}
+          SHINYAPPS_TOKEN: ${{ secrets.SHINYAPPS_TOKEN }}
+          SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
+        run: Rscript .github/scripts/desplegar.R

@@ -1,0 +1,248 @@
+/* =============================================================================
+   Estilos de la interfaz con la identidad de Pal Sur del Norte
+   Morado #321A89 · Lavanda #8986EB · Turquesa #00EDC9 · Amarillo #F4A700
+   ============================================================================= */
+
+:root {
+  --psn-morado: #321A89;
+  --psn-morado-medio: #4B35A8;
+  --psn-lavanda: #8986EB;
+  --psn-lavanda-claro: #ECEBFB;
+  --psn-turquesa: #00EDC9;
+  --psn-turquesa-oscuro: #00B89C;
+  --psn-amarillo: #F4A700;
+  --psn-ambar-texto: #9A6700;
+  --psn-texto: #1E1640;
+  --psn-gris: #55546B;
+  --psn-fondo: #F6F5FD;
+}
+
+body { background-color: var(--psn-fondo); color: var(--psn-texto); }
+
+h1, h2, h3, h4, h5, .sidebar-title, .card-header { font-family: "Montserrat", "Segoe UI", Arial, sans-serif; }
+
+/* ---------------------------------------------------------- Barra superior */
+.navbar, .bslib-page-navbar > .navbar, nav.navbar.navbar-static-top {
+  border-bottom: 4px solid var(--psn-turquesa) !important;
+}
+.navbar-brand { font-weight: 800; letter-spacing: .02em; display: flex; align-items: center; }
+.logo-nav {
+  height: 40px; width: 40px; object-fit: contain;
+  background: #fff; border-radius: 50%; padding: 3px; margin-right: .6rem;
+}
+.navbar .nav-link { font-weight: 600; }
+.navbar .nav-link.active,
+.navbar .nav-link:hover,
+.navbar .nav-link:focus { color: var(--psn-turquesa) !important; }
+
+/* ------------------------------------------------------------------ Portada */
+.portada {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, var(--psn-morado) 0%, var(--psn-morado-medio) 55%, var(--psn-lavanda) 100%);
+  color: #fff; border-radius: 22px; padding: 2.5rem 2.25rem; margin: .5rem 0 1.5rem;
+  box-shadow: 0 12px 30px rgba(50, 26, 137, .25);
+}
+.portada::before, .portada::after {
+  content: ""; position: absolute; border-radius: 50%; pointer-events: none;
+}
+.portada::before { width: 320px; height: 320px; right: -90px; bottom: -120px; background: rgba(0, 237, 201, .20); }
+.portada::after  { width: 160px; height: 160px; right: 18%; top: -70px; background: rgba(244, 167, 0, .22); }
+
+.portada-grid {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: 2.5rem; align-items: center;
+}
+.portada-logo-wrap {
+  width: 100%; max-width: 300px; aspect-ratio: 1 / 1;
+  background: #fff; border-radius: 50%; padding: 1.4rem;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .28);
+}
+.portada-logo { width: 100%; height: auto; }
+
+.portada-etiqueta {
+  display: inline-block; background: rgba(255, 255, 255, .16);
+  padding: .35rem .9rem; border-radius: 999px; font-size: .85rem; font-weight: 600;
+}
+.portada-etiqueta svg { fill: var(--psn-amarillo); }
+.portada h1 {
+  color: #fff; font-weight: 800; line-height: 1.05;
+  font-size: clamp(2.1rem, 4.5vw, 3.4rem); margin: .9rem 0 .25rem;
+}
+.portada-sub { color: var(--psn-turquesa); font-weight: 800; font-size: 1.3rem; margin-bottom: .75rem; }
+.portada-lead { font-size: 1.08rem; max-width: 660px; opacity: .96; }
+
+.portada-municipios { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.1rem 0 1.4rem; }
+.chip {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: #fff; color: var(--psn-morado); font-weight: 700; font-size: .9rem;
+  padding: .35rem .85rem; border-radius: 999px;
+}
+.chip svg { fill: var(--psn-turquesa-oscuro); }
+
+.portada-botones { display: flex; flex-wrap: wrap; gap: .75rem; }
+.btn-turquesa {
+  background: var(--psn-turquesa); color: var(--psn-morado); border: 0; font-weight: 800;
+}
+.btn-turquesa:hover, .btn-turquesa:focus { background: #00d6b5; color: var(--psn-morado); }
+.portada .btn-outline-light { font-weight: 700; border-width: 2px; }
+.portada .btn-outline-light:hover { color: var(--psn-morado); }
+
+@media (max-width: 768px) {
+  .portada { padding: 2rem 1.25rem; text-align: center; }
+  .portada-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .portada-logo-wrap { max-width: 210px; margin: 0 auto; }
+  .portada-municipios, .portada-botones { justify-content: center; }
+}
+
+/* ----------------------------------------------------- Tarjetas de los ejes */
+.seccion-titulo { color: var(--psn-morado); font-weight: 800; margin: 1.75rem 0 1rem; }
+.seccion-titulo::after {
+  content: ""; display: block; width: 64px; height: 5px; margin-top: .4rem;
+  border-radius: 3px; background: var(--psn-turquesa);
+}
+.ejes-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 1rem; margin-bottom: 1.5rem;
+}
+.eje-tarjeta {
+  display: block; height: 100%; text-decoration: none; color: var(--psn-texto);
+  background: #fff; border-radius: 16px; padding: 1.15rem 1.2rem;
+  border-top: 5px solid var(--psn-lavanda);
+  box-shadow: 0 2px 10px rgba(50, 26, 137, .08);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.eje-tarjeta:hover, .eje-tarjeta:focus {
+  transform: translateY(-4px); color: var(--psn-texto);
+  border-top-color: var(--psn-turquesa); box-shadow: 0 10px 24px rgba(50, 26, 137, .18);
+}
+.eje-icono {
+  width: 48px; height: 48px; border-radius: 13px; margin-bottom: .7rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--psn-morado); font-size: 1.3rem;
+}
+.eje-icono svg { fill: var(--psn-turquesa); }
+.eje-titulo { font-family: "Montserrat", "Segoe UI", Arial, sans-serif; font-weight: 800; font-size: 1.08rem; color: var(--psn-morado); }
+.eje-desc { font-size: .9rem; color: var(--psn-gris); margin: .3rem 0 .6rem; }
+.eje-anios { font-size: .8rem; font-weight: 800; color: var(--psn-ambar-texto); }
+.eje-anios svg { fill: var(--psn-amarillo); }
+
+/* ------------------------------------------------------ Tarjetas y pestañas */
+.card { border: 0; border-radius: 16px; box-shadow: 0 2px 10px rgba(50, 26, 137, .08); }
+.card-header {
+  background: #fff; color: var(--psn-morado); font-weight: 700;
+  border-bottom: 3px solid var(--psn-lavanda);
+}
+.nav-tabs .nav-link { color: var(--psn-gris); font-weight: 600; }
+.nav-tabs .nav-link:hover { color: var(--psn-morado); }
+.nav-tabs .nav-link.active {
+  color: var(--psn-morado); font-weight: 800;
+  border-bottom: 3px solid var(--psn-turquesa);
+}
+
+.bslib-value-box { border-radius: 16px; }
+.bslib-value-box .value-box-value { font-size: 1.45rem; font-weight: 800; }
+.bslib-value-box .value-box-title { font-size: .9rem; font-weight: 600; }
+
+/* ------------------------------------------------------ Barra lateral/filtros */
+.bslib-sidebar-layout > .sidebar { background-color: #fff; }
+.bslib-sidebar-layout { border-radius: 16px; }
+.sidebar-title { color: var(--psn-morado); font-weight: 800; }
+.control-label, .form-label { color: var(--psn-morado); font-weight: 700; }
+
+.form-check-input:checked { background-color: var(--psn-morado); border-color: var(--psn-morado); }
+.form-switch .form-check-input:checked { background-color: var(--psn-turquesa-oscuro); border-color: var(--psn-turquesa-oscuro); }
+.form-check-input:focus, .form-control:focus, .form-select:focus {
+  border-color: var(--psn-lavanda); box-shadow: 0 0 0 .2rem rgba(137, 134, 235, .3);
+}
+
+.irs--shiny .irs-bar { background: var(--psn-turquesa-oscuro); border-top-color: var(--psn-turquesa-oscuro); border-bottom-color: var(--psn-turquesa-oscuro); }
+.irs--shiny .irs-from, .irs--shiny .irs-to, .irs--shiny .irs-single { background: var(--psn-morado); }
+.irs--shiny .irs-handle { border-color: var(--psn-morado); }
+
+.selectize-control.multi .selectize-input > div { background: var(--psn-lavanda-claro); color: var(--psn-morado); }
+
+/* ------------------------------------------------------------------- Tablas */
+table.dataTable thead th { background-color: var(--psn-morado); color: #fff; }
+table.dataTable thead tr:nth-child(2) td { background-color: var(--psn-lavanda-claro); }
+.dt-buttons .dt-button, .dt-buttons .btn {
+  background: #fff !important; color: var(--psn-morado) !important;
+  border: 2px solid var(--psn-lavanda) !important; border-radius: 8px !important; font-weight: 700;
+}
+
+/* ----------------------------------------------------------- Pie de página */
+.pie {
+  display: flex; align-items: center; justify-content: center; gap: .6rem; flex-wrap: wrap;
+  margin: 2rem 0 1rem; padding-top: 1rem; color: var(--psn-gris); font-size: .88rem;
+  border-top: 1px solid var(--psn-lavanda-claro);
+}
+.pie img { height: 30px; width: 30px; object-fit: contain; }
+.pie b { color: var(--psn-morado); }
+
+/* ------------------------------------------- Filtros dentro de cada gráfica */
+.card .bslib-sidebar-layout { border: 0 !important; border-radius: 0; }
+.card .bslib-sidebar-layout > .sidebar {
+  background-color: var(--psn-fondo) !important;
+  border-right: 3px solid var(--psn-lavanda-claro) !important;
+}
+.card .bslib-sidebar-layout > .sidebar .sidebar-title {
+  font-size: .95rem; color: var(--psn-morado);
+  padding-bottom: .4rem; border-bottom: 3px solid var(--psn-turquesa);
+}
+.card .bslib-sidebar-layout .shiny-input-container { margin-bottom: .75rem; }
+.card .nav-tabs { flex-wrap: wrap; }
+
+/* ------------------------------------------------------------------- Censo */
+.censo-login { max-width: 470px; margin: 2.5rem auto; text-align: center; padding: 1rem 1.5rem 1.5rem; }
+.censo-candado {
+  width: 76px; height: 76px; border-radius: 50%; margin: .5rem auto 1rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--psn-morado); font-size: 1.9rem;
+}
+.censo-candado svg { fill: var(--psn-turquesa); }
+.censo-candado, .censo-candado i { color: var(--psn-turquesa); }
+
+/* Íconos de fuente (Font Awesome) con los colores de la marca */
+.eje-icono i { color: var(--psn-turquesa); }
+.eje-anios i { color: var(--psn-amarillo); }
+.chip i { color: var(--psn-turquesa-oscuro); }
+.portada-etiqueta i { color: var(--psn-amarillo); }
+
+/* Menú superior compacto para que las pestañas quepan en una línea */
+@media (min-width: 992px) {
+  .navbar .nav-link { padding-left: .5rem !important; padding-right: .5rem !important; font-size: .93rem; }
+  .navbar-brand { margin-right: .75rem; }
+}
+.censo-login h3 { color: var(--psn-morado); font-weight: 800; }
+.censo-login .shiny-input-container { width: 100% !important; }
+.censo-login .form-control { text-align: center; font-size: 1.05rem; }
+.censo-error { color: #B3261E; font-weight: 700; min-height: 1.5rem; margin-top: .5rem; }
+
+.censo-aviso {
+  background: var(--psn-lavanda-claro); border-left: 5px solid var(--psn-morado);
+  border-radius: 10px; padding: .7rem 1rem; color: var(--psn-texto); margin-bottom: 1rem;
+}
+.censo-encabezado { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.censo-encabezado h4 { color: var(--psn-morado); font-weight: 800; margin: 0; }
+
+.ficha-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: .1rem 1.1rem;
+}
+.ficha-seccion {
+  grid-column: 1 / -1; margin: .9rem 0 .35rem; padding-bottom: .2rem;
+  color: var(--psn-morado); font-weight: 800; border-bottom: 3px solid var(--psn-lavanda-claro);
+}
+.campo-faltante label::after {
+  content: "Falta"; margin-left: .45rem; padding: .05rem .5rem; border-radius: 999px;
+  background: var(--psn-amarillo); color: var(--psn-morado); font-size: .7rem; font-weight: 800;
+}
+.campo-faltante .form-control, .campo-faltante .form-select, .campo-faltante .selectize-input {
+  border-color: var(--psn-amarillo); background-color: #FFF8E6;
+}
+.ficha-botones { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+.completitud { height: 10px; border-radius: 999px; background: var(--psn-lavanda-claro); overflow: hidden; }
+.completitud > div { height: 100%; background: linear-gradient(90deg, var(--psn-turquesa-oscuro), var(--psn-turquesa)); }
+
+.lista-ayuda li { margin-bottom: .35rem; }
+.lista-ayuda li::marker { color: var(--psn-turquesa-oscuro); }
