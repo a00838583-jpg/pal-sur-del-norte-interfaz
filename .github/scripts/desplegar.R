@@ -22,10 +22,18 @@ options(repos = c(CRAN = "https://cloud.r-project.org"))
 for (descripcion in file.path(list.dirs(.libPaths(), recursive = FALSE), "DESCRIPTION")) {
   if (!file.exists(descripcion)) next
   campos <- read.dcf(descripcion)
+  cambio <- FALSE
   if ("Repository" %in% colnames(campos) && identical(unname(campos[1, "Repository"]), "RSPM")) {
     campos[1, "Repository"] <- "CRAN"
-    try(write.dcf(campos, descripcion, keep.white = colnames(campos)), silent = TRUE)
+    cambio <- TRUE
   }
+  # Los paquetes pedidos como "any::paquete" quedan con datos de instalación (Remote*)
+  # que hacen que shinyapps.io no encuentre la dirección de CRAN
+  if ("RemoteType" %in% colnames(campos) && campos[1, "RemoteType"] %in% c("any", "standard")) {
+    campos <- campos[, !grepl("^Remote", colnames(campos)), drop = FALSE]
+    cambio <- TRUE
+  }
+  if (cambio) try(write.dcf(campos, descripcion, keep.white = colnames(campos)), silent = TRUE)
 }
 
 rsconnect::setAccountInfo(name = cuenta, token = token, secret = secreto, server = "shinyapps.io")
@@ -52,8 +60,10 @@ manifiesto <- jsonlite::read_json("manifest.json")
 unlink("manifest.json")
 fuentes <- vapply(manifiesto$packages, function(p) paste0(p$Source, ""), character(1))
 message("Origen de los paquetes: ", paste(names(table(fuentes)), table(fuentes), sep = "=", collapse = ", "))
-if (any(fuentes == "RSPM")) {
-  message("ERROR: siguen marcados como RSPM: ", paste(names(fuentes)[fuentes == "RSPM"], collapse = ", "))
+direcciones <- vapply(manifiesto$packages, function(p) paste0(p$Repository, ""), character(1))
+if (any(fuentes != "CRAN" | !startsWith(direcciones, "https://"))) {
+  message("ERROR: estos paquetes no quedaron marcados como CRAN: ",
+          paste(names(fuentes)[fuentes != "CRAN" | !startsWith(direcciones, "https://")], collapse = ", "))
   quit(status = 1)
 }
 
