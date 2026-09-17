@@ -13,14 +13,14 @@ library(readxl)
 
 # ---- Dónde vive la base del censo ----
 # La configuración está en el archivo .Renviron de esta carpeta:
-#   CENSO_HOJA          URL de la hoja de Google del censo (obligatoria en shinyapps.io)
-#   CENSO_CREDENCIALES  archivo JSON de la cuenta de servicio de Google
+#   CENSO_HOJA          URL de la aplicación web de Apps Script de la hoja de Google (obligatoria en shinyapps.io)
+#   CENSO_TOKEN         clave del puente de Apps Script (credenciales/apps_script_censo.gs)
 #   CENSO_CLAVE_SHA256  huella de la contraseña (opcional)
 # Si CENSO_HOJA está vacía, la interfaz usa el Excel local de CENSO_RUTA.
 if (file.exists(".Renviron")) readRenviron(".Renviron")
 
 CENSO_HOJA <- Sys.getenv("CENSO_HOJA")
-CENSO_CREDENCIALES <- Sys.getenv("CENSO_CREDENCIALES", "credenciales/cuenta_servicio.json")
+CENSO_TOKEN <- Sys.getenv("CENSO_TOKEN")
 RUTA_CENSO <- if (nzchar(CENSO_HOJA)) CENSO_HOJA else Sys.getenv("CENSO_RUTA", path.expand("~/Desktop/BaseNuevaMerge_v2.xlsx"))
 
 # La contraseña no se guarda tal cual, solo su huella SHA-256.
@@ -68,15 +68,40 @@ vacio <- function(x) is.na(x) | trimws(x) == ""
 # La base es una hoja de Google si la ruta no es un archivo de Excel
 es_hoja_google <- function(ruta) !grepl("\\.xlsx?$", ruta, ignore.case = TRUE)
 
-conectar_google <- function() {
-  if (!requireNamespace("googlesheets4", quietly = TRUE)) {
-    stop("Falta el paquete googlesheets4. Instálalo con install.packages(\"googlesheets4\").")
-  }
-  if (!googlesheets4::gs4_has_token()) {
-    if (!file.exists(CENSO_CREDENCIALES)) stop("No se encontró el archivo de credenciales de Google: ", CENSO_CREDENCIALES)
-    googlesheets4::gs4_auth(path = CENSO_CREDENCIALES, scopes = "https://www.googleapis.com/auth/spreadsheets")
-  }
-  invisible(TRUE)
+# La hoja de Google se lee y se escribe con la aplicación web de Apps Script
+# (credenciales/apps_script_censo.gs), que responde solo si recibe CENSO_TOKEN.
+llamar_google <- function(accion, ...) {
+  if (!nzchar(CENSO_TOKEN)) stop("Falta CENSO_TOKEN en la configuración.")
+  cuerpo <- jsonlite::toJSON(list(token = CENSO_TOKEN, accion = accion, ...), auto_unbox = TRUE, na = "null",
+                             null = "null", dataframe = "values", digits = NA)
+  resp <- httr::POST(CENSO_HOJA, body = cuerpo, httr::content_type_json(), httr::timeout(90))
+  texto <- httr::content(resp, as = "text", encoding = "UTF-8")
+  r <- tryCatch(jsonlite::fromJSON(texto, simplifyVector = TRUE), error = function(e) NULL)
+  if (is.null(r)) stop("La hoja de Google no respondió correctamente (HTTP ", httr::status_code(resp), ").")
+  if (!isTRUE(r$ok)) stop("Hoja de Google: ", r$error)
+  r
+}
+
+# Lee una pestaña (la primera si `pestana` es NULL) como data.frame de texto; NULL si no existe
+leer_google <- function(pestana = NULL) {
+  r <- llamar_google("leer", pestana = pestana)
+  if (!isTRUE(r$existe)) return(NULL)
+  v <- r$valores
+  if (length(v) == 0) return(data.frame())
+  if (!is.matrix(v)) v <- matrix(v, nrow = 1)
+  base <- as.data.frame(v[-1, , drop = FALSE], stringsAsFactors = FALSE, optional = TRUE)
+  names(base) <- v[1, ]
+  base[] <- lapply(base, function(x) { x[!is.na(x) & x == ""] <- NA; x })
+  base
+}
+
+# Reemplaza toda una pestaña con un data.frame (las columnas numéricas se guardan como número)
+reemplazar_google <- function(pestana, datos, solo_si_vacia = FALSE) {
+  datos <- as.data.frame(datos, check.names = FALSE)
+  numericas <- which(vapply(datos, is.numeric, logical(1)))
+  filas <- lapply(seq_len(nrow(datos)), function(i) unname(lapply(datos, `[[`, i)))
+  llamar_google("reemplazar", pestana = pestana, encabezados = I(names(datos)), filas = filas,
+                numericas = I(unname(numericas)), solo_si_vacia = solo_si_vacia)
 }
 
 # Unifica respuestas como "SÍ", "si", "NO" o "n" en "Sí" y "No"
@@ -90,10 +115,8 @@ normalizar_sino <- function(x) {
 
 leer_censo <- function(ruta = RUTA_CENSO) {
   if (es_hoja_google(ruta)) {
-    conectar_google()
-    base <- googlesheets4::read_sheet(ruta, sheet = 1, col_types = "c", na = "", trim_ws = FALSE, .name_repair = "minimal")
-    base <- as.data.frame(base, check.names = FALSE)
-    base[] <- lapply(base, function(x) { x <- as.character(x); x[!is.na(x) & x == ""] <- NA; x })
+    base <- leer_google()
+    if (is.null(base) || ncol(base) == 0) stop("La hoja de Google del censo está vacía.")
     return(base)
   }
   if (!file.exists(ruta)) stop("No se encontró el Excel del censo en: ", ruta)
@@ -147,55 +170,25 @@ limpiar_xlsx <- function(entrada, salida) {
 }
 
 # ---- Escritura en Google Sheets ----
-# Aplica los cambios sobre la base actual y arma los bloques de filas que hay que escribir:
-# `bloque` reemplaza filas que ya existen (desde la fila `inicio` de la hoja) y
-# `nuevas` se agregan al final. Las columnas numéricas se mandan como número.
-bloques_para_hoja <- function(actual, cambios) {
-  datos <- as.data.frame(actual, check.names = FALSE)
-  attr(datos, "modificado") <- NULL
-  n <- nrow(datos)
-  columnas <- names(datos)
-  filas <- sort(unique(cambios$fila))
-  necesarias <- max(filas) - 1
-  if (necesarias > n) datos[(n + 1):necesarias, ] <- NA
-  for (k in seq_len(nrow(cambios))) {
+# Manda a la hoja de Google solo las celdas que cambian (fila de la hoja, columna por nombre)
+escribir_hoja_lote <- function(columnas, cambios) {
+  celdas <- lapply(seq_len(nrow(cambios)), function(k) {
     j <- match(cambios$columna[k], columnas)
-    if (is.na(j)) next
+    if (is.na(j)) return(NULL)
     v <- trimws(as.character(cambios$valor[k]))
-    datos[cambios$fila[k] - 1, j] <- if (is.na(v) || v == "") NA else v
-  }
-  tipar <- function(d) {
-    rownames(d) <- NULL
-    for (col in intersect(COLUMNAS_NUMERICAS, names(d))) {
-      num <- suppressWarnings(as.numeric(d[[col]]))
-      if (all(is.na(d[[col]]) | !is.na(num))) d[[col]] <- num
-    }
-    d
-  }
-  existentes <- filas[filas <= n + 1]
-  nuevas <- filas[filas > n + 1]
-  list(
-    inicio = if (length(existentes)) min(existentes) else NA_integer_,
-    bloque = if (length(existentes)) tipar(datos[(min(existentes) - 1):(max(existentes) - 1), , drop = FALSE]) else NULL,
-    nuevas = if (length(nuevas)) tipar(datos[(n + 1):(max(nuevas) - 1), , drop = FALSE]) else NULL
-  )
-}
-
-escribir_hoja_lote <- function(hoja, cambios) {
-  conectar_google()
-  b <- bloques_para_hoja(leer_censo(hoja), cambios)
-  if (!is.null(b$bloque)) {
-    googlesheets4::range_write(hoja, data = b$bloque, sheet = 1, range = paste0("A", b$inicio),
-                               col_names = FALSE, reformat = FALSE)
-  }
-  if (!is.null(b$nuevas)) googlesheets4::sheet_append(hoja, data = b$nuevas, sheet = 1)
+    num <- suppressWarnings(as.numeric(v))
+    valor <- if (is.na(v) || v == "") NULL else if (cambios$columna[k] %in% COLUMNAS_NUMERICAS && !is.na(num)) num else v
+    list(fila = cambios$fila[k], columna = j, valor = valor)
+  })
+  celdas <- Filter(Negate(is.null), celdas)
+  if (length(celdas)) llamar_google("escribir", celdas = celdas)
   invisible(TRUE)
 }
 
 # Escribe solo las celdas indicadas; conserva el resto del libro tal cual.
 # `cambios` es un data.frame con la fila del Excel, la columna y el valor nuevo.
 escribir_celdas_lote <- function(ruta, columnas, cambios) {
-  if (es_hoja_google(ruta)) return(escribir_hoja_lote(ruta, cambios))
+  if (es_hoja_google(ruta)) return(escribir_hoja_lote(columnas, cambios))
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop("Falta el paquete openxlsx. Instálalo con install.packages(\"openxlsx\").")
   }
@@ -230,10 +223,7 @@ guardar_libro <- function(libro, ruta) {
 # Agrega una columna vacía (por ejemplo, un programa nuevo) en la posición j
 agregar_columna_censo <- function(ruta, columna, j) {
   if (es_hoja_google(ruta)) {
-    conectar_google()
-    googlesheets4::sheet_resize(ruta, sheet = 1, ncol = j, exact = FALSE)
-    googlesheets4::range_write(ruta, data = data.frame(x = columna), sheet = 1,
-                               range = paste0(cellranger::num_to_letter(j), "1"), col_names = FALSE, reformat = FALSE)
+    llamar_google("escribir", celdas = list(list(fila = 1, columna = j, valor = columna)))
   } else {
     libro <- openxlsx::loadWorkbook(ruta)
     openxlsx::writeData(libro, sheet = 1, x = columna, startCol = j, startRow = 1, colNames = FALSE)

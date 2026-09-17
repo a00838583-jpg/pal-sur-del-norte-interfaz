@@ -88,10 +88,9 @@ jobs:
         env:
           CENSO_HOJA: ${{ secrets.CENSO_HOJA }}
           CENSO_CLAVE_SHA256: ${{ secrets.CENSO_CLAVE_SHA256 }}
-          GOOGLE_CREDENCIALES_JSON: ${{ secrets.GOOGLE_CREDENCIALES_JSON }}
+          CENSO_TOKEN: ${{ secrets.CENSO_TOKEN }}
         run: |
           : > .Renviron
-          echo "CENSO_CREDENCIALES=credenciales/cuenta_servicio.json" >> .Renviron
           if [ -n "$CENSO_HOJA" ]; then
             echo "CENSO_HOJA=$CENSO_HOJA" >> .Renviron
           else
@@ -100,9 +99,8 @@ jobs:
           if [ -n "$CENSO_CLAVE_SHA256" ]; then
             echo "CENSO_CLAVE_SHA256=$CENSO_CLAVE_SHA256" >> .Renviron
           fi
-          if [ -n "$GOOGLE_CREDENCIALES_JSON" ]; then
-            mkdir -p credenciales
-            printf '%s' "$GOOGLE_CREDENCIALES_JSON" > credenciales/cuenta_servicio.json
+          if [ -n "$CENSO_TOKEN" ]; then
+            echo "CENSO_TOKEN=$CENSO_TOKEN" >> .Renviron
           fi
 
       - name: Publicar en shinyapps.io

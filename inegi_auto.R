@@ -34,10 +34,8 @@ dias_desde_descarga <- function(datos) {
 # ---- Lectura y guardado en Google Sheets ----
 
 leer_inegi_google <- function() {
-  conectar_google()
-  if (!PESTANA_INEGI %in% googlesheets4::sheet_names(CENSO_HOJA)) return(NULL)
-  d <- as.data.frame(googlesheets4::read_sheet(CENSO_HOJA, sheet = PESTANA_INEGI, col_types = "c"), check.names = FALSE)
-  if (nrow(d) == 0) return(NULL)
+  d <- leer_google(PESTANA_INEGI)
+  if (is.null(d) || nrow(d) == 0) return(NULL)
   descargado <- as.POSIXct(d$descargado[1], tz = "UTC")
   d$descargado <- NULL
   d$anio <- as.integer(d$anio)
@@ -49,11 +47,11 @@ leer_inegi_google <- function() {
 }
 
 guardar_inegi_google <- function(datos) {
-  conectar_google()
   d <- as.data.frame(datos)
   d$fecha <- format(d$fecha, "%Y-%m-%d")
   d$descargado <- format(attr(datos, "descargado"), "%Y-%m-%d %H:%M:%S", tz = "UTC")
-  googlesheets4::sheet_write(d, ss = CENSO_HOJA, sheet = PESTANA_INEGI)
+  d[] <- lapply(d, as.character)
+  reemplazar_google(PESTANA_INEGI, d)
   invisible(TRUE)
 }
 
