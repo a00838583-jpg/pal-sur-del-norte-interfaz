@@ -21,7 +21,7 @@ if (file.exists(".Renviron")) readRenviron(".Renviron")
 
 CENSO_HOJA <- Sys.getenv("CENSO_HOJA")
 CENSO_TOKEN <- Sys.getenv("CENSO_TOKEN")
-RUTA_CENSO <- if (nzchar(CENSO_HOJA)) CENSO_HOJA else Sys.getenv("CENSO_RUTA", path.expand("~/Desktop/BaseNuevaMerge_v2.xlsx"))
+RUTA_CENSO <- if (nzchar(CENSO_HOJA)) CENSO_HOJA else Sys.getenv("CENSO_RUTA", path.expand("~/Desktop/BaseNuevaMerge_v2.1_Censo.xlsx"))
 
 # La contraseña no se guarda tal cual, solo su huella SHA-256.
 # Para cambiarla, calcula la nueva huella en la consola de R y ponla en CENSO_CLAVE_SHA256 (.Renviron):
@@ -54,12 +54,15 @@ TIPOS_CENSO <- c(
 COLUMNAS_SINO <- names(TIPOS_CENSO)[TIPOS_CENSO == "sino"]
 
 SECCIONES_CENSO <- list(
-  "Identificación" = c("nombre_completo", "No.", "Nombre (s)", "Apellido (s)", "CURP", "Parentezco"),
+  "Identificación" = c("nombre_completo", "No.", "CURP", "Parentezco"),
   "Nacimiento y sexo" = c("DIA", "MES", "AÑO", "F. DE NAC", "EDAD", "SEXO (MUJER/HOMBRE)"),
-  "Ubicación y contacto" = c("MPIO", "EJIDO", "Lugar de origen", "TELEFONO"),
-  "Programas y seguimiento" = c("Escolaridad", "Promedio / Aptitudes", "Asistencia_Ingenium",
-                                "recibio_celular", "Entrevistado_ProSocial", "Asistencia 21 de Abril")
+  "Ubicación y contacto" = c("MPIO", "EJIDO", "TELEFONO")
 )
+
+# Columnas que están en la hoja del censo pero no se muestran en la página:
+# el nombre va solo como "Nombre completo" y los demás datos se registran en Programas (base Beneficio)
+COLUMNAS_OCULTAS_CENSO <- c("Nombre (s)", "Apellido (s)", "Escolaridad", "Promedio / Aptitudes", "Lugar de origen",
+                            "Asistencia_Ingenium", "recibio_celular", "Entrevistado_ProSocial", "Asistencia 21 de Abril")
 
 # ------------------------------------------------------ Lectura y escritura -----
 
@@ -113,10 +116,10 @@ normalizar_sino <- function(x) {
                 ifelse(clave %in% c("NO", "N"), "No", trimws(x))))
 }
 
-leer_censo <- function(ruta = RUTA_CENSO) {
+leer_censo <- function(ruta = RUTA_CENSO, pestana = NULL) {
   if (es_hoja_google(ruta)) {
-    base <- leer_google()
-    if (is.null(base) || ncol(base) == 0) stop("La hoja de Google del censo está vacía.")
+    base <- leer_google(pestana)
+    if (is.null(base) || ncol(base) == 0) stop("La hoja de Google no tiene la pestaña ", if (is.null(pestana)) "del censo" else paste0("«", pestana, "»"), " o está vacía.")
     return(base)
   }
   if (!file.exists(ruta)) stop("No se encontró el Excel del censo en: ", ruta)
@@ -171,7 +174,7 @@ limpiar_xlsx <- function(entrada, salida) {
 
 # ---- Escritura en Google Sheets ----
 # Manda a la hoja de Google solo las celdas que cambian (fila de la hoja, columna por nombre)
-escribir_hoja_lote <- function(columnas, cambios) {
+escribir_hoja_lote <- function(columnas, cambios, pestana = NULL) {
   celdas <- lapply(seq_len(nrow(cambios)), function(k) {
     j <- match(cambios$columna[k], columnas)
     if (is.na(j)) return(NULL)
@@ -181,14 +184,14 @@ escribir_hoja_lote <- function(columnas, cambios) {
     list(fila = cambios$fila[k], columna = j, valor = valor)
   })
   celdas <- Filter(Negate(is.null), celdas)
-  if (length(celdas)) llamar_google("escribir", celdas = celdas)
+  if (length(celdas)) llamar_google("escribir", pestana = pestana, celdas = celdas)
   invisible(TRUE)
 }
 
 # Escribe solo las celdas indicadas; conserva el resto del libro tal cual.
 # `cambios` es un data.frame con la fila del Excel, la columna y el valor nuevo.
-escribir_celdas_lote <- function(ruta, columnas, cambios) {
-  if (es_hoja_google(ruta)) return(escribir_hoja_lote(columnas, cambios))
+escribir_celdas_lote <- function(ruta, columnas, cambios, pestana = NULL) {
+  if (es_hoja_google(ruta)) return(escribir_hoja_lote(columnas, cambios, pestana))
   if (!requireNamespace("openxlsx", quietly = TRUE)) {
     stop("Falta el paquete openxlsx. Instálalo con install.packages(\"openxlsx\").")
   }
@@ -221,16 +224,16 @@ guardar_libro <- function(libro, ruta) {
 }
 
 # Agrega una columna vacía (por ejemplo, un programa nuevo) en la posición j
-agregar_columna_censo <- function(ruta, columna, j) {
+agregar_columna_censo <- function(ruta, columna, j, pestana = NULL) {
   if (es_hoja_google(ruta)) {
-    llamar_google("escribir", celdas = list(list(fila = 1, columna = j, valor = columna)))
+    llamar_google("escribir", pestana = pestana, celdas = list(list(fila = 1, columna = j, valor = columna)))
   } else {
     libro <- openxlsx::loadWorkbook(ruta)
     openxlsx::writeData(libro, sheet = 1, x = columna, startCol = j, startRow = 1, colNames = FALSE)
     openxlsx::addStyle(libro, sheet = 1, style = openxlsx::createStyle(textDecoration = "bold"), rows = 1, cols = j)
     guardar_libro(libro, ruta)
   }
-  if (!(columna %in% names(leer_censo(ruta)))) stop("No se pudo agregar la columna a la base.")
+  if (!(columna %in% names(leer_censo(ruta, pestana)))) stop("No se pudo agregar la columna a la base.")
   invisible(TRUE)
 }
 
@@ -264,13 +267,10 @@ guardar_fila_censo <- function(ruta, fila, nombre_original, cambios) {
   invisible(TRUE)
 }
 
-# Si falta el nombre completo, se arma con nombre(s) y apellido(s) en mayúsculas,
-# igual que el resto de la base
+# El nombre completo se guarda en mayúsculas y sin espacios de más, igual que el resto de la base
 completar_nombre <- function(valores) {
-  if (is.null(valores[["nombre_completo"]]) || vacio(valores[["nombre_completo"]])) {
-    partes <- c(valores[["Nombre (s)"]], valores[["Apellido (s)"]])
-    partes <- trimws(partes[!is.null(partes) & !vacio(partes)])
-    if (length(partes)) valores[["nombre_completo"]] <- toupper(paste(partes, collapse = " "))
+  if (!is.null(valores[["nombre_completo"]]) && !vacio(valores[["nombre_completo"]])) {
+    valores[["nombre_completo"]] <- toupper(gsub("\\s+", " ", trimws(valores[["nombre_completo"]])))
   }
   valores
 }
@@ -280,7 +280,7 @@ agregar_persona_censo <- function(ruta, valores) {
   actual <- leer_censo(ruta)
   valores <- completar_nombre(valores)
   nombre <- valores[["nombre_completo"]]
-  if (is.null(nombre) || vacio(nombre)) stop("Escribe el nombre completo o, al menos, el nombre y los apellidos de la persona.")
+  if (is.null(nombre) || vacio(nombre)) stop("Escribe el nombre completo de la persona.")
   if (toupper(trimws(nombre)) %in% toupper(trimws(actual$nombre_completo))) {
     stop("Ya existe una persona con ese nombre completo. Búscala en \"Buscar y editar\".")
   }
@@ -331,11 +331,11 @@ calcular_nacimiento <- function(dia, mes, anio, hoy = Sys.Date()) {
 }
 
 # Columnas de datos de la persona (sin contar las de programas)
-columnas_datos <- function(base) setdiff(names(base), grep("^Programa: ", names(base), value = TRUE))
+columnas_datos <- function(base) setdiff(names(base), c(grep("^Programa: ", names(base), value = TRUE), COLUMNAS_OCULTAS_CENSO))
 
 faltantes_persona <- function(fila) {
   faltan <- names(fila)[vapply(fila, vacio, logical(1))]
-  faltan[!startsWith(faltan, "Programa: ")]
+  intersect(faltan, columnas_datos(fila))
 }
 
 etiqueta_censo <- function(col) {
@@ -379,9 +379,7 @@ campo_censo <- function(id, col, valor, opciones) {
 formulario_censo <- function(prefijo, base, fila = NULL) {
   columnas <- names(base)
   secciones <- SECCIONES_CENSO
-  programas <- grep("^Programa: ", columnas, value = TRUE)
-  if (length(programas)) secciones[["Programas"]] <- programas
-  otras <- setdiff(columnas, unlist(secciones))
+  otras <- setdiff(columnas_datos(base), unlist(secciones))
   if (length(otras)) secciones[["Otros datos"]] <- otras
   tags$div(
     class = "ficha-grid",
@@ -675,9 +673,11 @@ censo_server <- function(input, output, session) {
     req(autorizado(), censo())
     base <- censo()
     fila <- persona()
-    nuevos <- leer_formulario(input, "censo_c_", names(base))
-    actuales <- lapply(base[fila, ], function(v) if (vacio(v)) "" else trimws(v))
-    cambios <- nuevos[vapply(names(base), function(col) !identical(nuevos[[col]], actuales[[col]]), logical(1))]
+    # Solo se comparan los campos que se ven en la ficha; las columnas ocultas no se tocan
+    visibles <- columnas_datos(base)
+    nuevos <- leer_formulario(input, "censo_c_", names(base))[visibles]
+    actuales <- lapply(base[fila, visibles], function(v) if (vacio(v)) "" else trimws(v))
+    cambios <- nuevos[vapply(visibles, function(col) !identical(nuevos[[col]], actuales[[col]]), logical(1))]
     if (!length(cambios)) {
       showNotification("No hay cambios por guardar.", type = "message")
       return()
@@ -722,7 +722,7 @@ censo_server <- function(input, output, session) {
     version_nuevo()
     tagList(
       tags$div(class = "censo-aviso", icon("user-plus"),
-               " Llena los datos que tengas. Si dejas vacío el nombre completo, se arma con el nombre y los apellidos. La persona se agrega al final del Excel."),
+               " Llena los datos que tengas; el nombre completo es obligatorio. La persona se agrega al final de la base del censo."),
       uiOutput("censo_resultado_alta"),
       formulario_censo("censo_n_", censo()),
       tags$div(
@@ -796,7 +796,7 @@ censo_server <- function(input, output, session) {
   # ---- Base completa ----
   output$censo_tabla_base <- renderDT({
     req(censo())
-    base <- censo()
+    base <- censo()[, columnas_datos(censo()), drop = FALSE]
     names(base) <- etiqueta_censo(names(base))
     datatable(base, rownames = FALSE, filter = "top",
               options = list(pageLength = 15, scrollX = TRUE,
