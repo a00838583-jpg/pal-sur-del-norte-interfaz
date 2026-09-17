@@ -5,8 +5,8 @@
 #   catalogo_indicadores.csv (lista fija de consultas)
 #     -> descargar_datos.R      (consulta la API de INEGI y escribe datos/inegi_datos.rds)
 #     -> validar_datos.R        (revisa que la descarga esté completa y que la app pueda leerla)
-#     -> commit de datos/       (guarda la versión nueva en el repositorio)
 #     -> desplegar.R            (publica app.R, funciones.R, censo.R, ... en shinyapps.io)
+#     -> commit de datos/       (guarda la versión nueva en el repositorio)
 #
 # Si la descarga falla o viene incompleta, el workflow se detiene y la app
 # publicada sigue funcionando con los datos anteriores.
@@ -81,18 +81,6 @@ jobs:
       - name: Validar la descarga
         run: Rscript .github/scripts/validar_datos.R "$RUNNER_TEMP/inegi_datos_anterior.rds"
 
-      - name: Guardar los datos actualizados en el repositorio
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add datos/inegi_datos.rds datos/inegi_datos.csv
-          if git diff --cached --quiet; then
-            echo "Los datos no cambiaron."
-          else
-            git commit -m "Actualización automática de datos de INEGI ($(date -u +%Y-%m-%d))"
-            git push
-          fi
-
       - name: Preparar la configuración del censo (desde GitHub Secrets)
         env:
           CENSO_HOJA: ${{ secrets.CENSO_HOJA }}
@@ -120,3 +108,22 @@ jobs:
           SHINYAPPS_TOKEN: ${{ secrets.SHINYAPPS_TOKEN }}
           SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
         run: Rscript .github/scripts/desplegar.R
+
+      - name: Guardar los datos actualizados en el repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Apartar los datos nuevos y ponerse al día con la versión más reciente de GitHub,
+          # así el guardado no choca aunque la ejecución se repita o haya otros cambios
+          mkdir -p "$RUNNER_TEMP/datos_nuevos"
+          cp datos/inegi_datos.rds datos/inegi_datos.csv "$RUNNER_TEMP/datos_nuevos/"
+          git fetch origin main
+          git reset --hard origin/main
+          cp "$RUNNER_TEMP/datos_nuevos/inegi_datos.rds" "$RUNNER_TEMP/datos_nuevos/inegi_datos.csv" datos/
+          git add datos/inegi_datos.rds datos/inegi_datos.csv
+          if git diff --cached --quiet; then
+            echo "Los datos no cambiaron."
+          else
+            git commit -m "Actualización automática de datos de INEGI ($(date -u +%Y-%m-%d))"
+            git push origin main
+          fi
