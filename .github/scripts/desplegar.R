@@ -15,12 +15,10 @@ if (length(faltan)) {
   quit(status = 1)
 }
 
-# Los paquetes se instalaron desde Posit Package Manager (repositorio "RSPM").
-# shinyapps.io necesita una dirección de código fuente para ese nombre, no la de binarios de Linux.
-options(repos = c(
-  CRAN = "https://cloud.r-project.org",
-  RSPM = "https://packagemanager.posit.co/cran/latest"
-))
+# Los paquetes se instalaron desde Posit Package Manager (repositorio "RSPM"),
+# pero shinyapps.io solo sabe instalarlos si se registran como CRAN.
+# Sin un repositorio llamado "RSPM", rsconnect los busca en CRAN y los marca así.
+options(repos = c(CRAN = "https://cloud.r-project.org"))
 
 rsconnect::setAccountInfo(name = cuenta, token = token, secret = secreto, server = "shinyapps.io")
 
