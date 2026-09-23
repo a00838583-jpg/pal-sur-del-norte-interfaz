@@ -103,8 +103,9 @@ anios_eje <- function(e) {
 
 nota <- function(...) tags$p(class = "text-muted small mb-0", ...)
 
+# Los cuatro municipios vienen marcados; Nuevo León y el total nacional se pueden marcar para comparar
 filtro_municipios <- function(id) {
-  checkboxGroupInput(id, "Municipios", choices = MUNICIPIOS, selected = MUNICIPIOS)
+  checkboxGroupInput(id, "Lugares", choices = LUGARES, selected = MUNICIPIOS)
 }
 
 filtro_anios <- function(id, anios, etiqueta = "Años") {
@@ -228,7 +229,8 @@ ui <- page_navbar(
       ),
       grafica_con_filtros(
         "Pirámide de edad 2020", "pob_piramide",
-        selectInput("pob_pir_lugar", "Municipio", choices = c("Los 4 municipios" = "todos", MUNICIPIOS)),
+        selectInput("pob_pir_lugar", "Lugar", choices = list("Los 4 municipios" = "todos",
+                                                            Municipios = MUNICIPIOS, `Comparar con` = COMPARATIVOS)),
         input_switch("pob_pir_pct", "Mostrar en porcentaje", TRUE),
         nota("Censo de Población y Vivienda 2020."),
         alto = "600px"

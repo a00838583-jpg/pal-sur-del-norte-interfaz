@@ -9,7 +9,9 @@ library(ggplot2)
 library(scales)
 
 MUNICIPIOS <- c("Aramberri", "Doctor Arroyo", "General Zaragoza", "Mier y Noriega")
-LUGARES <- MUNICIPIOS
+# Referencias para comparar a los municipios: el estado y el país
+COMPARATIVOS <- c("Nuevo León", "Nacional")
+LUGARES <- c(MUNICIPIOS, COMPARATIVOS)
 EJES <- c("Población", "Empleo y ocupación", "Natalidad y mortalidad", "Migración",
           "Salud", "Hogares y vivienda", "Educación")
 
@@ -22,7 +24,7 @@ AMARILLO <- "#F4A700"
 GRIS <- "#55546B"
 
 COLORES <- c("Aramberri" = MORADO, "Doctor Arroyo" = TURQUESA_OSCURO, "General Zaragoza" = LAVANDA,
-             "Mier y Noriega" = AMARILLO,
+             "Mier y Noriega" = AMARILLO, "Nuevo León" = "#D9577E", "Nacional" = GRIS,
              "Hombres" = MORADO, "Mujeres" = TURQUESA_OSCURO, "Total" = GRIS)
 PALETA <- c(MORADO, TURQUESA_OSCURO, LAVANDA, AMARILLO, "#D9577E", "#1E7F74", "#5B4CC4", "#B57C00", GRIS)
 
@@ -58,8 +60,8 @@ cargar_datos <- function(carpeta = ".") {
 
 preparar_datos <- function(datos) {
   descargado <- attr(datos, "descargado")
-  # La interfaz trabaja solo con los cuatro municipios
-  datos <- datos[datos$lugar %in% MUNICIPIOS, ]
+  # La interfaz trabaja con los cuatro municipios y con Nuevo León y el total nacional
+  datos <- datos[datos$lugar %in% LUGARES, ]
   datos$periodo <- ifelse(is.na(datos$trimestre), as.character(datos$anio),
                           paste0(datos$anio, "-T", datos$trimestre))
   # INEGI publica el indicador 6207049067 como número de personas en 2020,
@@ -137,7 +139,7 @@ tema_inegi <- function() {
 # Tabla con nombres en español y sin columnas vacías
 tabla_datos <- function(d) {
   col <- function(v) if (v %in% names(d)) as.character(d[[v]]) else rep(NA_character_, nrow(d))
-  t <- data.frame(Municipio = col("lugar"), Indicador = col("indicador"), `Categoría` = col("categoria"),
+  t <- data.frame(Lugar = col("lugar"), Indicador = col("indicador"), `Categoría` = col("categoria"),
                   `Grupo de edad` = col("grupo_edad"), Periodo = col("periodo"),
                   Valor = if ("valor" %in% names(d)) round(d$valor, 2) else NA,
                   Unidad = col("unidad"), id = col("id"), check.names = FALSE)
@@ -215,8 +217,16 @@ graf_generica <- function(df, x = "anio", tipo = "lineas", color = NULL, facet =
   }
 
   unidad <- if ("unidad" %in% names(df)) df$unidad[1] else ""
+  # Al comparar con Nuevo León o con el país, las cifras del estado o del país tapan a los
+  # municipios; en ese caso la escala se vuelve logarítmica para que se vean todas las series
+  positivos <- df$valor[!is.na(df$valor) & df$valor > 0]
+  log_y <- tipo %in% c("lineas", "barras") && !es_porcentaje(unidad) && length(positivos) > 1 &&
+    max(positivos) / min(positivos) > 50
   if (tipo == "proporcion") {
     p <- p + scale_y_continuous(labels = percent, expand = expansion(mult = c(0, 0.02)))
+  } else if (log_y) {
+    p <- p + scale_y_log10(labels = function(v) formato_eje(v, unidad), expand = expansion(mult = c(0.05, 0.08)))
+    eje_y <- paste0(if (is.null(eje_y)) "Valor" else eje_y, " (escala logarítmica)")
   } else {
     p <- p + scale_y_continuous(labels = function(v) formato_eje(v, unidad),
                                 expand = expansion(mult = c(if (tipo == "lineas") 0.05 else 0, 0.08)))
@@ -294,8 +304,8 @@ datos_grupos_grandes <- function(datos, lugares) {
 
 # ------------------------------------------------ Empleo y ocupación -----
 
-kpi_empleo <- function(datos) {
-  e <- datos |> filter(eje == "Empleo y ocupación")
+kpi_empleo <- function(datos, lugares = MUNICIPIOS) {
+  e <- datos |> filter(eje == "Empleo y ocupación", lugar %in% lugares)
   if (nrow(e) == 0) return(list(activa = "Sin dato", mujeres = "Sin dato", hogar = "Sin dato"))
   a <- max(e$anio)
   v <- function(cat) e$valor[e$categoria == cat & e$anio == a]
@@ -339,7 +349,8 @@ datos_crecimiento_natural <- function(datos, lugares, anios) {
                         "<br>Defunciones: ", comma(defunciones, accuracy = 1), "<br>Crecimiento natural: ", con_signo(valor)))
 }
 
-kpi_natalidad <- function(datos) {
+kpi_natalidad <- function(datos, lugares = MUNICIPIOS) {
+  datos <- datos |> filter(lugar %in% lugares)
   nac <- datos |> filter(subtema == "Nacimientos registrados")
   def <- datos |> filter(subtema == "Defunciones registradas")
   hijos <- datos |> filter(subtema == "Promedio de hijos nacidos vivos")
@@ -434,7 +445,7 @@ graf_cambio_salud <- function(d) {
 datos_discapacidad <- function(datos, lugares, tipos, medida = "personas") {
   d <- datos |>
     filter(subtema == "Discapacidad", lugar %in% lugares, categoria %in% tipos) |>
-    arrange(match(categoria, DISCAPACIDADES), match(lugar, MUNICIPIOS))
+    arrange(match(categoria, DISCAPACIDADES), match(lugar, LUGARES))
   if (medida == "pct") {
     poblacion <- datos |>
       filter(subtema == "Población total", categoria == "Total", anio == 2020) |>
@@ -450,7 +461,8 @@ datos_discapacidad <- function(datos, lugares, tipos, medida = "personas") {
   d
 }
 
-kpi_salud <- function(datos) {
+kpi_salud <- function(datos, lugares = MUNICIPIOS) {
+  datos <- datos |> filter(lugar %in% lugares)
   s <- datos |> filter(subtema == "Afiliación a servicios de salud")
   afiliada <- function(a) mean(s$valor[s$categoria == "Afiliada a algún servicio" & s$anio == a])
   inst <- s |>
@@ -495,8 +507,8 @@ kpi_hogares <- function(datos, lugares = MUNICIPIOS) {
 
 # --------------------------------------------------------- Educación -----
 
-kpi_educacion <- function(datos) {
-  e <- datos |> filter(eje == "Educación")
+kpi_educacion <- function(datos, lugares = MUNICIPIOS) {
+  e <- datos |> filter(eje == "Educación", lugar %in% lugares)
   ultimo <- function(cat) {
     d <- e[e$categoria == cat, ]
     if (nrow(d) == 0) return("Sin dato")
