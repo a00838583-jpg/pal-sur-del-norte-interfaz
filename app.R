@@ -30,11 +30,16 @@ inegi$estado <- paste0("Datos descargados el ", format(attr(inegi$datos, "descar
                        ". Se revisan automáticamente cada ", DIAS_ACTUALIZACION_INEGI, " días.")
 datos_iniciales <- inegi$datos
 
-anios_de <- function(filtro) sort(unique(datos_iniciales$anio[filtro]))
+# Los años que se ofrecen en los filtros son los que tienen dato en los municipios
+# (Nuevo León y el país tienen series más largas y dejarían años vacíos)
+anios_de <- function(filtro) {
+  sort(unique(datos_iniciales$anio[filtro & datos_iniciales$lugar %in% MUNICIPIOS]))
+}
 A_POB <- anios_de(datos_iniciales$subtema == "Población total")
 A_EMP <- anios_de(datos_iniciales$eje == "Empleo y ocupación")
 A_SAL <- anios_de(datos_iniciales$subtema == "Afiliación a servicios de salud")
 A_HOG <- anios_de(datos_iniciales$subtema == "Jefatura del hogar")
+A_FEC <- anios_de(datos_iniciales$subtema == "Hijos por grupo de edad de la madre")
 R_NAC <- range(anios_de(datos_iniciales$subtema == "Nacimientos registrados"))
 R_DEF <- range(anios_de(datos_iniciales$subtema == "Defunciones registradas"))
 R_VIT <- c(max(R_NAC[1], R_DEF[1]), min(R_NAC[2], R_DEF[2]))
@@ -103,9 +108,11 @@ anios_eje <- function(e) {
 
 nota <- function(...) tags$p(class = "text-muted small mb-0", ...)
 
-# Los cuatro municipios vienen marcados; Nuevo León y el total nacional se pueden marcar para comparar
-filtro_municipios <- function(id) {
-  checkboxGroupInput(id, "Lugares", choices = LUGARES, selected = MUNICIPIOS)
+# Los cuatro municipios vienen marcados; Nuevo León y el total nacional se pueden marcar
+# para comparar, salvo en las gráficas de cantidades donde no son comparables (comparar = FALSE)
+filtro_municipios <- function(id, comparar = TRUE) {
+  checkboxGroupInput(id, if (comparar) "Lugares" else "Municipios",
+                     choices = if (comparar) LUGARES else MUNICIPIOS, selected = MUNICIPIOS)
 }
 
 filtro_anios <- function(id, anios, etiqueta = "Años") {
@@ -223,7 +230,7 @@ ui <- page_navbar(
       full_screen = TRUE,
       grafica_con_filtros(
         "Evolución", "pob_evol",
-        filtro_municipios("pob_evol_mun"),
+        filtro_municipios("pob_evol_mun", comparar = FALSE),
         checkboxGroupInput("pob_evol_sexo", "Sexo", choices = c("Total", "Hombres", "Mujeres"), selected = "Total", inline = TRUE),
         filtro_anios("pob_evol_anios", A_POB)
       ),
@@ -237,7 +244,7 @@ ui <- page_navbar(
       ),
       grafica_con_filtros(
         "Grandes grupos de edad", "pob_grupos",
-        filtro_municipios("pob_grupos_mun"),
+        filtro_municipios("pob_grupos_mun", comparar = FALSE),
         nota("Censo de Población y Vivienda 2020.")
       ),
       nav_panel("Tabla", DTOutput("pob_tabla"))
@@ -291,21 +298,21 @@ ui <- page_navbar(
       full_screen = TRUE,
       grafica_con_filtros(
         "Nacimientos", "nat_nac",
-        filtro_municipios("nat_nac_mun"),
+        filtro_municipios("nat_nac_mun", comparar = FALSE),
         sliderInput("nat_nac_anios", "Años", min = R_NAC[1], max = R_NAC[2], value = R_NAC, step = 1, sep = ""),
         radioButtons("nat_nac_escala", "Mostrar como", choices = c("Número" = "num", "Índice (primer año = 100)" = "indice")),
         radioButtons("nat_nac_tipo", "Tipo de gráfica", choices = c("Líneas" = "lineas", "Barras" = "barras"), inline = TRUE)
       ),
       grafica_con_filtros(
         "Defunciones", "nat_def",
-        filtro_municipios("nat_def_mun"),
+        filtro_municipios("nat_def_mun", comparar = FALSE),
         sliderInput("nat_def_anios", "Años", min = R_DEF[1], max = R_DEF[2], value = R_DEF, step = 1, sep = ""),
         radioButtons("nat_def_escala", "Mostrar como", choices = c("Número" = "num", "Índice (primer año = 100)" = "indice")),
         radioButtons("nat_def_tipo", "Tipo de gráfica", choices = c("Líneas" = "lineas", "Barras" = "barras"), inline = TRUE)
       ),
       grafica_con_filtros(
         "Crecimiento natural", "nat_crec",
-        filtro_municipios("nat_crec_mun"),
+        filtro_municipios("nat_crec_mun", comparar = FALSE),
         sliderInput("nat_crec_anios", "Años", min = R_VIT[1], max = R_VIT[2], value = R_VIT, step = 1, sep = ""),
         nota("Nacimientos menos defunciones registradas en cada año. La línea punteada marca el cero.")
       ),
@@ -314,8 +321,9 @@ ui <- page_navbar(
         filtro_municipios("nat_prom_mun")
       ),
       grafica_con_filtros(
-        "Hijos por edad de la madre (2020)", "nat_edad",
-        filtro_municipios("nat_edad_mun")
+        "Hijos por edad de la madre", "nat_edad",
+        filtro_municipios("nat_edad_mun"),
+        radioButtons("nat_edad_anio", "Año", choices = rev(A_FEC), inline = TRUE)
       ),
       nav_panel("Tabla", DTOutput("nat_tabla"))
     )
@@ -334,13 +342,13 @@ ui <- page_navbar(
       full_screen = TRUE,
       grafica_con_filtros(
         "Inmigrantes y emigrantes", "mig_flujos",
-        filtro_municipios("mig_flu_mun"),
+        filtro_municipios("mig_flu_mun", comparar = FALSE),
         checkboxGroupInput("mig_flu_tipo", "Flujo", choices = c("Inmigrantes", "Emigrantes"), selected = c("Inmigrantes", "Emigrantes")),
         nota("Censo 2020, población de 5 años y más.")
       ),
       grafica_con_filtros(
         "Saldo migratorio", "mig_saldo_graf",
-        filtro_municipios("mig_sal_mun"),
+        filtro_municipios("mig_sal_mun", comparar = FALSE),
         nota("Inmigrantes menos emigrantes, Censo 2020.")
       ),
       grafica_con_filtros(
@@ -382,11 +390,12 @@ ui <- page_navbar(
       ),
       grafica_con_filtros(
         "Cobertura total", "sal_cob_graf",
-        filtro_municipios("sal_cob_mun")
+        filtro_municipios("sal_cob_mun"),
+        filtro_anios("sal_cob_anios", A_SAL)
       ),
       grafica_con_filtros(
         "Discapacidad", "sal_dis_graf",
-        filtro_municipios("sal_dis_mun"),
+        filtro_municipios("sal_dis_mun", comparar = FALSE),
         checkboxGroupInput("sal_dis_tipos", "Limitación en la actividad para", choices = DISCAPACIDADES, selected = DISCAPACIDADES),
         radioButtons("sal_dis_medida", "Mostrar como", choices = c("Número de personas" = "personas", "% de la población" = "pct")),
         radioButtons("sal_dis_vista", "Agrupar por", choices = c("Tipo de limitación" = "categoria", "Municipio" = "lugar")),
@@ -409,7 +418,7 @@ ui <- page_navbar(
       full_screen = TRUE,
       grafica_con_filtros(
         "Evolución de hogares", "hog_evol",
-        filtro_municipios("hog_evo_mun"),
+        filtro_municipios("hog_evo_mun", comparar = FALSE),
         checkboxGroupInput("hog_evo_jef", "Tipo de jefatura", choices = c("Jefatura femenina", "Jefatura masculina"),
                            selected = c("Jefatura femenina", "Jefatura masculina")),
         filtro_anios("hog_evo_anios", A_HOG)
@@ -616,7 +625,9 @@ server <- function(input, output, session) {
   })
   output$nat_edad <- renderPlotly({
     pide(input$nat_edad_mun)
-    d <- datos() |> filter(subtema == "Hijos por grupo de edad de la madre", lugar %in% input$nat_edad_mun)
+    d <- datos() |>
+      filter(subtema == "Hijos por grupo de edad de la madre", lugar %in% input$nat_edad_mun,
+             anio == as.integer(input$nat_edad_anio))
     hay_datos(d)
     a_plotly(graf_generica(d, x = "grupo_edad", color = "lugar",
                            eje_x = "Edad de la madre (años)", eje_y = "Promedio de hijos nacidos vivos"))
@@ -685,7 +696,10 @@ server <- function(input, output, session) {
   })
   output$sal_cob_graf <- renderPlotly({
     pide(input$sal_cob_mun)
-    d <- datos() |> filter(categoria == "Afiliada a algún servicio", lugar %in% input$sal_cob_mun)
+    pide(input$sal_cob_anios, "al menos un año")
+    d <- datos() |>
+      filter(categoria == "Afiliada a algún servicio", lugar %in% input$sal_cob_mun,
+             anio %in% as.integer(input$sal_cob_anios))
     hay_datos(d)
     a_plotly(graf_generica(d, x = "lugar", tipo = "barras", color = "anio",
                            eje_y = "% de la población afiliada a servicios de salud"))
@@ -733,10 +747,14 @@ server <- function(input, output, session) {
     pide(input$hog_com_mun)
     pide(input$hog_com_anios, "al menos un año")
     d <- datos() |>
-      filter(subtema == "Jefatura del hogar", lugar %in% input$hog_com_mun, anio %in% as.integer(input$hog_com_anios))
+      filter(subtema == "Jefatura del hogar", lugar %in% input$hog_com_mun, anio %in% as.integer(input$hog_com_anios)) |>
+      group_by(lugar, anio) |>
+      mutate(tip = paste0("<b>", categoria, "</b><br>", lugar, " · ", periodo, "<br>",
+                          number(100 * valor / sum(valor), accuracy = 0.1), "%")) |>
+      ungroup()
     hay_datos(d)
     a_plotly(graf_generica(d, x = "lugar", tipo = "proporcion", color = "categoria",
-                           facet = if (length(input$hog_com_anios) > 1) "anio", eje_y = "Proporción de hogares"))
+                           facet = if (length(input$hog_com_anios) > 1) "anio", eje_y = "% de los hogares"))
   })
   output$hog_tabla <- renderDT(tabla_dt(filter(datos(), eje == "Hogares y vivienda")))
 
@@ -747,9 +765,20 @@ server <- function(input, output, session) {
   output$edu_sup <- renderText(edu_kpi()$superior)
 
   observeEvent(input$edu_com_ind, {
-    a <- sort(unique(datos()$anio[datos()$categoria == input$edu_com_ind]), decreasing = TRUE)
+    d <- datos()
+    a <- sort(unique(d$anio[d$categoria == input$edu_com_ind & d$lugar %in% MUNICIPIOS]), decreasing = TRUE)
     updateSelectInput(session, "edu_com_anio", choices = a, selected = a[1])
   })
+  # Los indicadores que son número de personas no se comparan con Nuevo León ni con el país
+  lugares_del_indicador <- function(id_filtro, indicador) {
+    opciones <- if (indicador %in% EDUCACION_SOLO_MUNICIPIOS) MUNICIPIOS else LUGARES
+    elegidos <- isolate(input[[id_filtro]])
+    if (is.null(elegidos)) elegidos <- MUNICIPIOS
+    updateCheckboxGroupInput(session, id_filtro, label = if (length(opciones) > 4) "Lugares" else "Municipios",
+                             choices = opciones, selected = intersect(elegidos, opciones))
+  }
+  observeEvent(input$edu_com_ind, lugares_del_indicador("edu_com_mun", input$edu_com_ind))
+  observeEvent(input$edu_evo_ind, lugares_del_indicador("edu_evo_mun", input$edu_evo_ind))
   output$edu_comp <- renderPlotly({
     pide(input$edu_com_mun)
     req(input$edu_com_anio)

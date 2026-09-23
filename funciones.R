@@ -40,6 +40,9 @@ EDUCACION <- c("Grado promedio de escolaridad", "Tasa de alfabetización (15 a 2
                "Asistencia escolar (5 años y más)", "% sin escolaridad", "% sin instrucción",
                "% con escolaridad básica", "% con media superior", "% con instrucción superior",
                "Personas de 6 a 14 años que no saben leer y escribir")
+# Indicadores de educación que son número de personas: no se comparan con Nuevo León ni con el país
+EDUCACION_SOLO_MUNICIPIOS <- c("Asistencia escolar (5 años y más)",
+                               "Personas de 6 a 14 años que no saben leer y escribir")
 NIVELES_EDUCATIVOS <- c("% sin escolaridad", "% con escolaridad básica", "% con media superior",
                         "% con instrucción superior")
 
@@ -490,8 +493,7 @@ datos_jefatura_femenina <- function(datos, lugares, anios) {
     group_by(lugar, anio, periodo) |>
     summarise(femenina = sum(valor[categoria == "Jefatura femenina"]), total = sum(valor), .groups = "drop") |>
     mutate(valor = 100 * femenina / total, unidad = "Porcentaje", categoria = "% jefatura femenina",
-           tip = paste0("<b>", lugar, "</b><br>", periodo, ": ", number(valor, accuracy = 0.1), "%<br>",
-                        comma(femenina), " de ", comma(total), " hogares"))
+           tip = paste0("<b>", lugar, "</b><br>", periodo, ": ", number(valor, accuracy = 0.1), "%"))
 }
 
 kpi_hogares <- function(datos, lugares = MUNICIPIOS) {
