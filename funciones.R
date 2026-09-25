@@ -81,10 +81,16 @@ preparar_datos <- function(datos) {
 
 # Las fuentes vienen como "Censos y Conteos de Población y Vivienda 2010 | Encuesta Intercensal 2015 | ..."
 # y se resumen en algo corto: "Censos y Conteos de Población y Vivienda (1990-2020) · Encuesta Intercensal (2015 y 2025)"
-texto_fuente <- function(fuentes) {
+texto_fuente <- function(fuentes, anios = NULL) {
   partes <- unique(trimws(unlist(strsplit(as.character(fuentes[!is.na(fuentes)]), "|", fixed = TRUE))))
   if (length(partes) == 0) return(NULL)
   anio <- suppressWarnings(as.integer(sub(".*?((19|20)\\d{2})\\s*$", "\\1", partes)))
+  # Solo se citan los censos o encuestas de los años que la gráfica realmente muestra
+  if (!is.null(anios)) {
+    partes <- partes[is.na(anio) | anio %in% anios]
+    anio <- anio[is.na(anio) | anio %in% anios]
+    if (length(partes) == 0) return(NULL)
+  }
   programa <- trimws(ifelse(is.na(anio), partes, sub("\\s*((19|20)\\d{2})\\s*$", "", partes)))
   resumen <- vapply(unique(programa), function(pr) {
     a <- sort(unique(anio[programa == pr & !is.na(anio)]))
@@ -175,7 +181,8 @@ resumen_ejes <- function(datos) {
     group_by(eje) |>
     summarise(Indicadores = n_distinct(id),
               `Consultas API` = n_distinct(paste(id, cve_area)),
-              `Años` = rango_txt(anio),
+              # Los años son los de los municipios: Nuevo León y el país tienen series más largas
+              `Años` = rango_txt(anio[lugar %in% MUNICIPIOS]),
               .groups = "drop") |>
     arrange(match(eje, EJES)) |>
     rename(`Eje temático` = eje)

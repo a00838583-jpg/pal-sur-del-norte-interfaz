@@ -35,9 +35,19 @@ datos_iniciales <- inegi$datos
 # Catálogo de indicadores: de aquí sale la fuente que se muestra debajo de los filtros
 CATALOGO <- read.csv("catalogo_indicadores.csv", colClasses = "character", fileEncoding = "UTF-8")
 
-# Nota con la fuente de los indicadores de uno o varios subtemas
-nota_fuente <- function(...) {
-  texto <- texto_fuente(CATALOGO$fuente[CATALOGO$subtema %in% c(...)])
+# Nota con la fuente de los indicadores que usa una gráfica: solo cita los censos y
+# encuestas de los años que esa gráfica muestra en los municipios
+nota_fuente <- function(..., categorias = NULL, anios = NULL) {
+  subtemas <- c(...)
+  d <- datos_iniciales[datos_iniciales$lugar %in% MUNICIPIOS & datos_iniciales$subtema %in% subtemas, ]
+  filas <- CATALOGO$subtema %in% subtemas
+  if (!is.null(categorias)) {
+    d <- d[d$categoria %in% categorias, ]
+    filas <- filas & CATALOGO$categoria %in% categorias
+  }
+  disponibles <- sort(unique(d$anio))
+  if (!is.null(anios)) disponibles <- intersect(disponibles, anios)
+  texto <- texto_fuente(CATALOGO$fuente[filas], disponibles)
   if (is.null(texto)) return(NULL)
   tags$p(class = "text-muted small mb-0 mt-2", icon("database"), " ", texto)
 }
@@ -410,7 +420,7 @@ ui <- page_navbar(
         filtro_municipios("sal_cam_mun"),
         selectInput("sal_inst_cambio", "Institución",
                     choices = c("Afiliada a algún servicio", "IMSS", "ISSSTE", "PEMEX, SDN o SM", "Seguro Popular", "Otra institución")),
-        nota_fuente("Afiliación a servicios de salud")
+        nota_fuente("Afiliación a servicios de salud", anios = c(2015, 2020))
       ),
       grafica_con_filtros(
         "Cobertura total", "sal_cob_graf",
@@ -495,7 +505,7 @@ ui <- page_navbar(
         radioButtons("edu_per_anio", "Año", choices = c("2020", "2015"), inline = TRUE),
         filtro_municipios("edu_per_mun"),
         nota("Distribución de la población de 15 años y más por nivel de escolaridad."),
-        nota_fuente("Educación")
+        nota_fuente("Educación", categorias = NIVELES_EDUCATIVOS, anios = c(2015, 2020))
       ),
       nav_panel("Tabla", DTOutput("edu_tabla"))
     )
