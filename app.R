@@ -32,6 +32,16 @@ datos_iniciales <- inegi$datos
 
 # Los años que se ofrecen en los filtros son los que tienen dato en los municipios
 # (Nuevo León y el país tienen series más largas y dejarían años vacíos)
+# Catálogo de indicadores: de aquí sale la fuente que se muestra debajo de los filtros
+CATALOGO <- read.csv("catalogo_indicadores.csv", colClasses = "character", fileEncoding = "UTF-8")
+
+# Nota con la fuente de los indicadores de uno o varios subtemas
+nota_fuente <- function(...) {
+  texto <- texto_fuente(CATALOGO$fuente[CATALOGO$subtema %in% c(...)])
+  if (is.null(texto)) return(NULL)
+  tags$p(class = "text-muted small mb-0 mt-2", icon("database"), " ", texto)
+}
+
 anios_de <- function(filtro) {
   sort(unique(datos_iniciales$anio[filtro & datos_iniciales$lugar %in% MUNICIPIOS]))
 }
@@ -232,7 +242,8 @@ ui <- page_navbar(
         "Evolución", "pob_evol",
         filtro_municipios("pob_evol_mun", comparar = FALSE),
         checkboxGroupInput("pob_evol_sexo", "Sexo", choices = c("Total", "Hombres", "Mujeres"), selected = "Total", inline = TRUE),
-        filtro_anios("pob_evol_anios", A_POB)
+        filtro_anios("pob_evol_anios", A_POB),
+        nota_fuente("Población total")
       ),
       grafica_con_filtros(
         "Pirámide de edad 2020", "pob_piramide",
@@ -240,12 +251,14 @@ ui <- page_navbar(
                                                             Municipios = MUNICIPIOS, `Comparar con` = COMPARATIVOS)),
         input_switch("pob_pir_pct", "Mostrar en porcentaje", TRUE),
         nota("Censo de Población y Vivienda 2020."),
+        nota_fuente("Grupos de edad"),
         alto = "600px"
       ),
       grafica_con_filtros(
         "Grandes grupos de edad", "pob_grupos",
         filtro_municipios("pob_grupos_mun", comparar = FALSE),
-        nota("Censo de Población y Vivienda 2020.")
+        nota("Censo de Población y Vivienda 2020."),
+        nota_fuente("Grupos de edad")
       ),
       nav_panel("Tabla", DTOutput("pob_tabla"))
     )
@@ -266,20 +279,23 @@ ui <- page_navbar(
         filtro_municipios("emp_cond_mun"),
         radioButtons("emp_cond_anio", "Año", choices = rev(A_EMP), inline = TRUE),
         radioButtons("emp_cond_tipo", "Tipo de gráfica", choices = c("Barras apiladas" = "apiladas", "Barras agrupadas" = "barras")),
-        nota("Porcentaje de la población de 12 años y más.")
+        nota("Porcentaje de la población de 12 años y más."),
+        nota_fuente("Condición de actividad")
       ),
       grafica_con_filtros(
         "Mujeres y hombres en la población activa", "emp_sexo",
         filtro_municipios("emp_sexo_mun"),
         filtro_anios("emp_sexo_anios", A_EMP),
-        nota("Distribución por sexo de la población económicamente activa: mujeres y hombres suman 100%.")
+        nota("Distribución por sexo de la población económicamente activa: mujeres y hombres suman 100%."),
+        nota_fuente("Participación por sexo")
       ),
       grafica_con_filtros(
         "Población no económicamente activa", "emp_pnea",
         filtro_municipios("emp_pnea_mun"),
         checkboxGroupInput("emp_pnea_cat", "Motivo", choices = MOTIVOS_PNEA, selected = MOTIVOS_PNEA),
         radioButtons("emp_pnea_anio", "Año", choices = rev(A_EMP), inline = TRUE),
-        nota("Porcentaje de la población no económicamente activa de 12 años y más.")
+        nota("Porcentaje de la población no económicamente activa de 12 años y más."),
+        nota_fuente("Población no económicamente activa")
       ),
       nav_panel("Tabla", DTOutput("emp_tabla"))
     )
@@ -301,29 +317,32 @@ ui <- page_navbar(
         filtro_municipios("nat_nac_mun", comparar = FALSE),
         sliderInput("nat_nac_anios", "Años", min = R_NAC[1], max = R_NAC[2], value = R_NAC, step = 1, sep = ""),
         radioButtons("nat_nac_escala", "Mostrar como", choices = c("Número" = "num", "Índice (primer año = 100)" = "indice")),
-        radioButtons("nat_nac_tipo", "Tipo de gráfica", choices = c("Líneas" = "lineas", "Barras" = "barras"), inline = TRUE)
+        nota_fuente("Nacimientos registrados")
       ),
       grafica_con_filtros(
         "Defunciones", "nat_def",
         filtro_municipios("nat_def_mun", comparar = FALSE),
         sliderInput("nat_def_anios", "Años", min = R_DEF[1], max = R_DEF[2], value = R_DEF, step = 1, sep = ""),
         radioButtons("nat_def_escala", "Mostrar como", choices = c("Número" = "num", "Índice (primer año = 100)" = "indice")),
-        radioButtons("nat_def_tipo", "Tipo de gráfica", choices = c("Líneas" = "lineas", "Barras" = "barras"), inline = TRUE)
+        nota_fuente("Defunciones registradas")
       ),
       grafica_con_filtros(
         "Crecimiento natural", "nat_crec",
         filtro_municipios("nat_crec_mun", comparar = FALSE),
         sliderInput("nat_crec_anios", "Años", min = R_VIT[1], max = R_VIT[2], value = R_VIT, step = 1, sep = ""),
-        nota("Nacimientos menos defunciones registradas en cada año. La línea punteada marca el cero.")
+        nota("Nacimientos menos defunciones registradas en cada año. La línea punteada marca el cero."),
+        nota_fuente("Nacimientos registrados", "Defunciones registradas")
       ),
       grafica_con_filtros(
         "Promedio de hijos", "nat_prom",
-        filtro_municipios("nat_prom_mun")
+        filtro_municipios("nat_prom_mun"),
+        nota_fuente("Promedio de hijos nacidos vivos")
       ),
       grafica_con_filtros(
         "Hijos por edad de la madre", "nat_edad",
         filtro_municipios("nat_edad_mun"),
-        radioButtons("nat_edad_anio", "Año", choices = rev(A_FEC), inline = TRUE)
+        radioButtons("nat_edad_anio", "Año", choices = rev(A_FEC), inline = TRUE),
+        nota_fuente("Hijos por grupo de edad de la madre")
       ),
       nav_panel("Tabla", DTOutput("nat_tabla"))
     )
@@ -344,19 +363,22 @@ ui <- page_navbar(
         "Inmigrantes y emigrantes", "mig_flujos",
         filtro_municipios("mig_flu_mun", comparar = FALSE),
         checkboxGroupInput("mig_flu_tipo", "Flujo", choices = c("Inmigrantes", "Emigrantes"), selected = c("Inmigrantes", "Emigrantes")),
-        nota("Censo 2020, población de 5 años y más.")
+        nota("Censo 2020, población de 5 años y más."),
+        nota_fuente("Flujos migratorios")
       ),
       grafica_con_filtros(
         "Saldo migratorio", "mig_saldo_graf",
         filtro_municipios("mig_sal_mun", comparar = FALSE),
-        nota("Inmigrantes menos emigrantes, Censo 2020.")
+        nota("Inmigrantes menos emigrantes, Censo 2020."),
+        nota_fuente("Flujos migratorios")
       ),
       grafica_con_filtros(
         "Causas de la migración", "mig_causas_graf",
         filtro_municipios("mig_cau_mun"),
         checkboxGroupInput("mig_causas", "Causas", choices = CAUSAS, selected = CAUSAS),
         radioButtons("mig_modo", "Mostrar como",
-                     choices = c("Barras agrupadas" = "barras", "Barras apiladas" = "apiladas", "Mapa de calor" = "calor"))
+                     choices = c("Barras agrupadas" = "barras", "Barras apiladas" = "apiladas", "Mapa de calor" = "calor")),
+        nota_fuente("Causas de la migración")
       ),
       nav_panel("Tabla", DTOutput("mig_tabla"))
     )
@@ -380,18 +402,21 @@ ui <- page_navbar(
         checkboxGroupInput("sal_inst", "Instituciones", choices = INSTITUCIONES,
                            selected = c("IMSS", "ISSSTE", "PEMEX, SDN o SM", "Seguro Popular", "IMSS-BIENESTAR", "Otra institución")),
         nota("IMSS-BIENESTAR y servicios médicos privados solo tienen dato en 2020; seguro privado solo en 2015."),
-        alto = "540px"
+        alto = "540px",
+        nota_fuente("Afiliación a servicios de salud")
       ),
       grafica_con_filtros(
         "2015 contra 2020", "sal_cambio_graf",
         filtro_municipios("sal_cam_mun"),
         selectInput("sal_inst_cambio", "Institución",
-                    choices = c("Afiliada a algún servicio", "IMSS", "ISSSTE", "PEMEX, SDN o SM", "Seguro Popular", "Otra institución"))
+                    choices = c("Afiliada a algún servicio", "IMSS", "ISSSTE", "PEMEX, SDN o SM", "Seguro Popular", "Otra institución")),
+        nota_fuente("Afiliación a servicios de salud")
       ),
       grafica_con_filtros(
         "Cobertura total", "sal_cob_graf",
         filtro_municipios("sal_cob_mun"),
-        filtro_anios("sal_cob_anios", A_SAL)
+        filtro_anios("sal_cob_anios", A_SAL),
+        nota_fuente("Afiliación a servicios de salud")
       ),
       grafica_con_filtros(
         "Discapacidad", "sal_dis_graf",
@@ -400,7 +425,8 @@ ui <- page_navbar(
         radioButtons("sal_dis_medida", "Mostrar como", choices = c("Número de personas" = "personas", "% de la población" = "pct")),
         radioButtons("sal_dis_vista", "Agrupar por", choices = c("Tipo de limitación" = "categoria", "Municipio" = "lugar")),
         nota("Censo 2020. Una persona puede tener más de una limitación."),
-        alto = "520px"
+        alto = "520px",
+        nota_fuente("Discapacidad")
       ),
       nav_panel("Tabla", DTOutput("sal_tabla"))
     )
@@ -421,17 +447,20 @@ ui <- page_navbar(
         filtro_municipios("hog_evo_mun", comparar = FALSE),
         checkboxGroupInput("hog_evo_jef", "Tipo de jefatura", choices = c("Jefatura femenina", "Jefatura masculina"),
                            selected = c("Jefatura femenina", "Jefatura masculina")),
-        filtro_anios("hog_evo_anios", A_HOG)
+        filtro_anios("hog_evo_anios", A_HOG),
+        nota_fuente("Jefatura del hogar")
       ),
       grafica_con_filtros(
         "% con jefatura femenina", "hog_pct",
         filtro_municipios("hog_pct_mun"),
-        filtro_anios("hog_pct_anios", A_HOG)
+        filtro_anios("hog_pct_anios", A_HOG),
+        nota_fuente("Jefatura del hogar")
       ),
       grafica_con_filtros(
         "Composición por año", "hog_comp",
         filtro_municipios("hog_com_mun"),
-        filtro_anios("hog_com_anios", A_HOG)
+        filtro_anios("hog_com_anios", A_HOG),
+        nota_fuente("Jefatura del hogar")
       ),
       nav_panel("Tabla", DTOutput("hog_tabla"))
     )
@@ -452,18 +481,21 @@ ui <- page_navbar(
         selectInput("edu_com_ind", "Indicador", choices = EDUCACION),
         selectInput("edu_com_anio", "Año", choices = NULL),
         filtro_municipios("edu_com_mun"),
-        input_switch("edu_com_prom", "Línea con el promedio de los municipios", TRUE)
+        input_switch("edu_com_prom", "Línea con el promedio de los municipios", TRUE),
+        nota_fuente("Educación")
       ),
       grafica_con_filtros(
         "Evolución", "edu_evol",
         selectInput("edu_evo_ind", "Indicador", choices = EDUCACION),
-        filtro_municipios("edu_evo_mun")
+        filtro_municipios("edu_evo_mun"),
+        nota_fuente("Educación")
       ),
       grafica_con_filtros(
         "Perfil educativo", "edu_perfil",
         radioButtons("edu_per_anio", "Año", choices = c("2020", "2015"), inline = TRUE),
         filtro_municipios("edu_per_mun"),
-        nota("Distribución de la población de 15 años y más por nivel de escolaridad.")
+        nota("Distribución de la población de 15 años y más por nivel de escolaridad."),
+        nota_fuente("Educación")
       ),
       nav_panel("Tabla", DTOutput("edu_tabla"))
     )
@@ -604,11 +636,11 @@ server <- function(input, output, session) {
   }
   output$nat_nac <- renderPlotly(
     graf_vital("Nacimientos registrados", input$nat_nac_mun, input$nat_nac_anios,
-               input$nat_nac_escala, input$nat_nac_tipo, "nacimientos", "Nacimientos")
+               input$nat_nac_escala, "lineas", "nacimientos", "Nacimientos")
   )
   output$nat_def <- renderPlotly(
     graf_vital("Defunciones registradas", input$nat_def_mun, input$nat_def_anios,
-               input$nat_def_escala, input$nat_def_tipo, "defunciones", "Defunciones")
+               input$nat_def_escala, "lineas", "defunciones", "Defunciones")
   )
   output$nat_crec <- renderPlotly({
     pide(input$nat_crec_mun)
@@ -753,7 +785,7 @@ server <- function(input, output, session) {
                           number(100 * valor / sum(valor), accuracy = 0.1), "%")) |>
       ungroup()
     hay_datos(d)
-    a_plotly(graf_generica(d, x = "lugar", tipo = "proporcion", color = "categoria",
+    a_plotly(graf_generica(d, x = "lugar", tipo = "proporcion", color = "categoria", horizontal = TRUE,
                            facet = if (length(input$hog_com_anios) > 1) "anio", eje_y = "% de los hogares"))
   })
   output$hog_tabla <- renderDT(tabla_dt(filter(datos(), eje == "Hogares y vivienda")))

@@ -68,7 +68,7 @@ descargar_todo <- function(carpeta = ".") {
 
   datos <- datos[order(datos$eje, datos$id, datos$cve_area, datos$fecha),
                  c("eje", "subtema", "categoria", "sexo", "grupo_edad", "id", "indicador",
-                   "unidad", "cve_area", "lugar", "periodo", "anio", "trimestre", "fecha", "valor")]
+                   "unidad", "fuente", "cve_area", "lugar", "periodo", "anio", "trimestre", "fecha", "valor")]
   rownames(datos) <- NULL
   attr(datos, "descargado") <- Sys.time()
 

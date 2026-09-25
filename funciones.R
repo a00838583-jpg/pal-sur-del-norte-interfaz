@@ -77,6 +77,27 @@ preparar_datos <- function(datos) {
   datos
 }
 
+# -------------------------------------------------------------- Fuentes -----
+
+# Las fuentes vienen como "Censos y Conteos de Población y Vivienda 2010 | Encuesta Intercensal 2015 | ..."
+# y se resumen en algo corto: "Censos y Conteos de Población y Vivienda (1990-2020) · Encuesta Intercensal (2015 y 2025)"
+texto_fuente <- function(fuentes) {
+  partes <- unique(trimws(unlist(strsplit(as.character(fuentes[!is.na(fuentes)]), "|", fixed = TRUE))))
+  if (length(partes) == 0) return(NULL)
+  anio <- suppressWarnings(as.integer(sub(".*?((19|20)\\d{2})\\s*$", "\\1", partes)))
+  programa <- trimws(ifelse(is.na(anio), partes, sub("\\s*((19|20)\\d{2})\\s*$", "", partes)))
+  resumen <- vapply(unique(programa), function(pr) {
+    a <- sort(unique(anio[programa == pr & !is.na(anio)]))
+    if (length(a) == 0) return(pr)
+    rango <- if (length(a) == 1) as.character(a)
+             else if (length(a) == 2) paste(a, collapse = " y ")
+             else if (identical(a, seq(a[1], tail(a, 1), by = 5))) paste0(a[1], "-", tail(a, 1))
+             else paste(a, collapse = ", ")
+    paste0(pr, " (", rango, ")")
+  }, character(1))
+  paste("Fuente: INEGI,", paste(resumen, collapse = " · "))
+}
+
 # -------------------------------------------------------------- Formatos -----
 
 es_porcentaje <- function(unidad) grepl("Porcentaje|Tasa", unidad)
