@@ -121,8 +121,9 @@ tarjeta_eje <- function(pestana, icono, descripcion, anios) {
   )
 }
 
+# Los años que se muestran en la portada son los de los municipios
 anios_eje <- function(e) {
-  a <- range(datos_iniciales$anio[datos_iniciales$eje == e])
+  a <- range(datos_iniciales$anio[datos_iniciales$eje == e & datos_iniciales$lugar %in% MUNICIPIOS])
   if (a[1] == a[2]) as.character(a[1]) else paste0(a[1], "–", a[2])
 }
 
@@ -260,14 +261,12 @@ ui <- page_navbar(
         selectInput("pob_pir_lugar", "Lugar", choices = list("Los 4 municipios" = "todos",
                                                             Municipios = MUNICIPIOS, `Comparar con` = COMPARATIVOS)),
         input_switch("pob_pir_pct", "Mostrar en porcentaje", TRUE),
-        nota("Censo de Población y Vivienda 2020."),
         nota_fuente("Grupos de edad"),
         alto = "600px"
       ),
       grafica_con_filtros(
         "Grandes grupos de edad", "pob_grupos",
         filtro_municipios("pob_grupos_mun", comparar = FALSE),
-        nota("Censo de Población y Vivienda 2020."),
         nota_fuente("Grupos de edad")
       ),
       nav_panel("Tabla", DTOutput("pob_tabla"))
@@ -373,13 +372,13 @@ ui <- page_navbar(
         "Inmigrantes y emigrantes", "mig_flujos",
         filtro_municipios("mig_flu_mun", comparar = FALSE),
         checkboxGroupInput("mig_flu_tipo", "Flujo", choices = c("Inmigrantes", "Emigrantes"), selected = c("Inmigrantes", "Emigrantes")),
-        nota("Censo 2020, población de 5 años y más."),
+        nota("Población de 5 años y más."),
         nota_fuente("Flujos migratorios")
       ),
       grafica_con_filtros(
         "Saldo migratorio", "mig_saldo_graf",
         filtro_municipios("mig_sal_mun", comparar = FALSE),
-        nota("Inmigrantes menos emigrantes, Censo 2020."),
+        nota("Inmigrantes menos emigrantes."),
         nota_fuente("Flujos migratorios")
       ),
       grafica_con_filtros(
@@ -434,7 +433,7 @@ ui <- page_navbar(
         checkboxGroupInput("sal_dis_tipos", "Limitación en la actividad para", choices = DISCAPACIDADES, selected = DISCAPACIDADES),
         radioButtons("sal_dis_medida", "Mostrar como", choices = c("Número de personas" = "personas", "% de la población" = "pct")),
         radioButtons("sal_dis_vista", "Agrupar por", choices = c("Tipo de limitación" = "categoria", "Municipio" = "lugar")),
-        nota("Censo 2020. Una persona puede tener más de una limitación."),
+        nota("Una persona puede tener más de una limitación."),
         alto = "520px",
         nota_fuente("Discapacidad")
       ),
